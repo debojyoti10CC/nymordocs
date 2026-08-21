@@ -1,0 +1,67 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Nymor",
+  "colors": {
+    "primary": "#DC2626",
+    "light": "#F87171",
+    "dark": "#991B1B"
+  },
+  "favicon": "/favicon.png",
+  "navigation": {
+    "pages": [
+      {
+        "group": "Get started",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "How it works",
+        "pages": ["architecture", "on-chain-policy", "dashboard"]
+      },
+      {
+        "group": "Where things stand",
+        "pages": ["status", "landscape", "roadmap"]
+      },
+      {
+        "group": "Technical article",
+        "pages": ["technical-overview"]
+      }
+    ],
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "href": "https://github.com/debojyoti10CC/nymor",
+          "icon": "github"
+        },
+        {
+          "anchor": "Stellar x402 docs",
+          "href": "https://developers.stellar.org/docs/build/agentic-payments/x402",
+          "icon": "book-open-cover"
+        }
+      ]
+    }
+  },
+  "logo": "/logo/logo.png",
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/debojyoti10CC/nymor"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "On-chain proof",
+      "href": "/on-chain-policy"
+    }
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude", "perplexity", "mcp", "cursor", "vscode"]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/debojyoti10CC/nymor"
+    }
+  }
+}

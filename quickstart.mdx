@@ -1,0 +1,63 @@
+---
+title: "Quickstart"
+description: "Run nymor-resources, nymor-server, and nymor-dashboard locally against real Stellar testnet infrastructure"
+---
+
+Everything below talks to real infrastructure — real Stellar testnet, a real facilitator, a real LLM. There's no offline/mocked mode, by design.
+
+## Prerequisites
+
+- Node.js 18+ and [pnpm](https://pnpm.io)
+- A free [OpenRouter](https://openrouter.ai/keys) API key (no card required for `:free` models) — powers the summarization resource
+- An OZ Channels API key — the real x402 facilitator this project uses (not the `www.x402.org/facilitator` URL some older x402 docs reference)
+
+<Warning>
+  If you skip the OZ Channels API key, `nymor-resources` crashes at startup with `no supported payment kinds loaded from any facilitator`. This is a known pitfall in the [Stellar agentic-payments skill](https://developers.stellar.org/docs/build/agentic-payments) — the facilitator requires Bearer auth on both testnet and mainnet.
+</Warning>
+
+## Get started
+
+<Steps>
+  <Step title="Install and generate accounts">
+    ```bash
+    pnpm install
+    pnpm setup:accounts        # generates seller + buyer Stellar keypairs
+    cp .env.example .env       # fill in from the setup:accounts output
+    ```
+  </Step>
+  <Step title="Fund the accounts (by hand — this can't be automated)">
+    1. Fund both accounts with testnet XLM at the [Stellar Lab friendbot](https://lab.stellar.org/account/fund)
+    2. Establish a USDC trustline on both — testnet USDC issuer: `GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5`
+    3. Get testnet USDC into the buyer account from the [Circle faucet](https://faucet.circle.com)
+  </Step>
+  <Step title="Run the seller and the MCP server">
+    ```bash
+    pnpm dev:resources   # seller on NYMOR_RESOURCES_PORT (3001)
+    pnpm dev:server      # MCP server over stdio
+    ```
+
+    `.mcp.json` at the repo root already wires `nymor-server` up for Claude Code (project-scoped, points at `packages/server/dist/index.js` — run `pnpm build` first). Restart your MCP client after adding/changing `.mcp.json`, then ask it "what paid resources does nymor know about?" — it should call `nymor.discover` and list both resources.
+  </Step>
+  <Step title="Run the dashboard (optional — for humans, not agents)">
+    ```bash
+    cp packages/dashboard/.env.example packages/dashboard/.env.local
+    # fill in VITE_SELLER_PAYTO_ADDRESS and the on-chain policy values
+    pnpm dev:dashboard   # :5173
+    ```
+
+    You'll need a [Freighter](https://www.freighter.app/) wallet with a testnet USDC trustline to use the "Try it yourself" panel — see [Dashboard](/dashboard).
+  </Step>
+</Steps>
+
+## Verify it's real
+
+```bash
+pnpm test                              # unit tests, no network
+RUN_INTEGRATION=1 pnpm test            # real testnet payment + real MCP stdio protocol test
+```
+
+The integration tests move real testnet USDC and print a settled transaction hash you can check on [Stellar Expert](https://stellar.expert/explorer/testnet) — that's deliberate. See [Where things stand](/status) for exact tx hashes already on record.
+
+<Tip>
+  Going to mainnet is a deliberately separate, later step — see [Roadmap](/roadmap). Nothing in this quickstart touches mainnet.
+</Tip>

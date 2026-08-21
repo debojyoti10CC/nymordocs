@@ -1,0 +1,51 @@
+---
+title: "Where things stand"
+description: "Every piece, tagged honestly: verified with a real test or transaction, built but untested end-to-end, or not started"
+---
+
+Three tags, used consistently: **verified** (a real passing test or a real on-chain transaction you can check), **built, untested end-to-end**, or **not started**. Nothing below is rounded up.
+
+## Core build
+
+| Piece | Status | Evidence |
+|---|---|---|
+| `nymor-resources` (2 paid endpoints) | Verified | 4 passing unit tests. Real CoinGecko price, real OpenRouter LLM call, real x402 402-gating |
+| `nymor-server` MCP product | Verified | 6 passing tests including a 20-way concurrency race test proving no double-spend |
+| MCP client wiring | Verified | Real stdio JSON-RPC transport test (not a direct import), real settled tx `6347154e93…` |
+| Real testnet payment | Verified | Integration test, real tx `26a0e06108…` |
+| Demo script | Verified, run and manually re-checked | Independently cross-checked tx `7134fa5c21…` on Horizon |
+| Demo screen recording | Not started | Human action, outside what this build produces |
+| Mainnet | Not started | Deliberately deferred — see [Roadmap](/roadmap) |
+
+## On-chain policy
+
+| Claim | Status | Evidence |
+|---|---|---|
+| Spending-limit contract deployed on testnet | Verified | Real addresses, state read back directly from chain (`get_context_rule`, `get_spending_limit_data`) — not just a successful deploy tx |
+| Enforcement logic correct | Verified, two ways | A passing Rust test driving the real `__check_auth` entry point, **and** a real on-chain transaction rejected with `SpendingLimitExceeded` — see [On-chain policy](/on-chain-policy) |
+| Buyer signs through the smart account for real agent payments | Not wired up | Buyer signer is still a raw Ed25519 keypair. Traced, disclosed reason: `@x402/stellar` hardcodes a helper with no hook for the custom signature shape OZ smart accounts need — [full explanation](/on-chain-policy#why-the-buyer-still-signs-with-a-raw-key) |
+
+<Warning>
+  The practical consequence: the local ledger file is what actually gates real agent spending today. The on-chain cap is real and its logic is proven — but nothing currently routes production payments through it.
+</Warning>
+
+## Dashboard
+
+| Panel | Status | Evidence |
+|---|---|---|
+| Marketplace | Verified | Real `GET /registry` data, curl- and browser-confirmed |
+| Live activity | Verified | Real Horizon `account_credited` effects, verified against a real settled tx before the panel was built |
+| On-chain policy | Verified | Live `getContractData` read confirmed against the real deployed contract |
+| Try it yourself | Verified, click-tested in a real browser | Real Freighter wallet, real USDC trustline, $0.01 paid, real data returned. Three real CORS bugs found and fixed — see [Dashboard](/dashboard) |
+
+**One caveat inside that last row, stated precisely:** only the `GET /xlm-price` payment path has actually been click-tested by a human. The `POST /summarize` "Pay $0.02" button uses the same code path and would be expected to work, but "expected to" isn't the same as verified — it hasn't been.
+
+## Known loose ends, however small
+
+- `TryItYourself.tsx` sends a fixed placeholder string for the `/summarize` POST body rather than accepting typed input.
+- No settled transaction hash on record yet for a real `/summarize` payment via the dashboard.
+- Dashboard's production JS bundle is ~1.5MB (Vite's own build warning) — not code-split. Load-time concern, not a correctness one.
+- `nymor-account`'s constructor is intentionally rigid — one `CallContract` rule, one signer, one policy. A deliberate simplification for this project's use case, not a general-purpose smart account.
+- CORS on `nymor-resources` is wide open (`Access-Control-Allow-Origin: *`) — correct for a public testnet demo, worth revisiting before any mainnet-facing claim.
+- No rate limiting on `nymor-resources` yet.
+- Building `packages/policy` requires a working host C/C++ toolchain and `stellar-cli` v25.2.0+ — real environment fragility was hit and worked around during development (see the repository's commit history for specifics), not something a fresh `cargo build` alone resolves everywhere.

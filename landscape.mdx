@@ -1,0 +1,44 @@
+---
+title: "Market and landscape"
+description: "A small, early market, and an honest comparison against Bazaar, MPPScan, and Nirium"
+---
+
+## The market, honestly
+
+Machine-to-machine payments for AI agents are a genuinely early market. Public activity trackers put real numbers on this: [MPPScan](https://www.mppscan.com/), an explorer for the Machine Payments Protocol, reported roughly 31,100 transactions and $3,730 in total volume across ~671 registered agents and 326 servers as of late March 2026. That's the entire tracked ecosystem for one major protocol variant — not a single product's numbers. This is not a market with an established winner yet, and no persona-driven market-sizing exercise changes that. The honest framing is: a small number of early builders, testing whether AI agents paying for API access autonomously is something that actually gets used, before it's something that scales.
+
+Nymor's position in that market is small and early too — testnet-only, a handful of real settled transactions, no production users beyond the people who've clicked through the dashboard's "try it yourself" panel. That's stated plainly rather than dressed up, consistent with the rest of this documentation.
+
+## Competitive comparison
+
+Three adjacent projects solve different pieces of the same problem. None of them is Nymor's direct substitute — they occupy different layers — but each clarifies what Nymor is and isn't.
+
+<AccordionGroup>
+  <Accordion title="x402 Bazaar — discovery layer">
+    The [x402 Bazaar](https://note.com/x402inc/n/n15def14762bc?hl=en) is a discovery registry: API providers register endpoints, and AI agents autonomously discover and pay them, with the option to select from multiple payment rails (x402, Lightning, Solana Pay, Stripe) based on wallet environment. It's genuinely useful and solves a real problem — an agent doesn't need to be told about every paid API in advance.
+
+    **The gap, in the Bazaar's own words:** its documentation identifies agent-compromise risk as an open problem — "if the agent's logic has been tampered with, the reliability of the record becomes hollow." Discovery and payment-rail selection don't address what happens if the *agent itself* starts making the wrong calls, whether from a bug, a prompt injection, or a compromised dependency. Bazaar doesn't claim to solve spend safety; it solves discovery.
+
+    **Where Nymor differs:** discovery in Nymor is much narrower — a single file-persisted registry, not a cross-provider marketplace. What Nymor adds instead is exactly the piece Bazaar's own docs flag as unaddressed: a spend cap that isn't just application logic the agent's own compromised code could route around, but (as of the on-chain policy work) a cap the Stellar network itself refuses to violate at the contract level.
+  </Accordion>
+
+  <Accordion title="MPPScan — observability, not infrastructure">
+    [MPPScan](https://www.mppscan.com/) is Merit Systems' block-explorer-style tool for the Machine Payments Protocol: it indexes MPP servers and tracks agents, transactions, and volume across the network. It's a read-only lens on an ecosystem, not something an agent integrates with to make payments.
+
+    **The gap:** it doesn't do discovery, payment, or spend enforcement — those aren't its job. It answers "how much MPP activity is happening," not "how do I safely let my agent spend money."
+
+    **Where Nymor differs:** Nymor is the opposite kind of tool — infrastructure an agent actually calls through (an MCP server), not a dashboard for watching the ecosystem from outside. The two aren't competitors so much as different layers; a project like Nymor is exactly the kind of thing a tool like MPPScan would eventually index.
+  </Accordion>
+
+  <Accordion title="Nirium — the closest comparison, and the most instructive gap">
+    [Nirium](https://www.nirium.xyz/) is the most directly comparable project: payment and audit infrastructure for AI agents, live on Stellar mainnet since July 2026, supporting both x402 and MPP settlement in USDC. It's materially more mature than Nymor in real, important ways — it's on mainnet, it has audit-receipt and institutional-reporting infrastructure Nymor doesn't attempt, and per its own site no MCP server is currently documented as part of the product (a detail worth double-checking directly against Nirium if this matters to a specific integration, since some secondary sources describe an "x402-MCP" component separately).
+
+    **The gap, and it's a precise one:** Nirium's own site describes a planned "Compliance Sentinel" feature — intended to validate every proposed transfer against a policy *before* it's signed — but marks it explicitly as roadmap, not live: *"should not be relied upon currently."* That is exactly the feature this project's [on-chain policy work](/on-chain-policy) delivers, with a real accepted transaction and a real network-rejected one to prove it, not a roadmap description.
+
+    **The honest summary:** Nirium is ahead on maturity, mainnet deployment, and audit tooling. Nymor is ahead on one specific, verifiable claim — a spend cap enforced by the network itself, with transactions to check — that a more mature, mainnet-live competitor's own roadmap says isn't built yet anywhere. That's a narrow claim, deliberately kept narrow rather than inflated into "better than Nirium."
+  </Accordion>
+</AccordionGroup>
+
+## What this means for Nymor's roadmap
+
+The comparison above is the actual argument for [prioritizing on-chain enforcement first](/roadmap): it's the one place this project has something concrete and checkable that adjacent, more mature projects don't yet have live. Breadth (more resources in the registry, more panels, a bigger market pitch) doesn't change that comparison — proving the core claim does.

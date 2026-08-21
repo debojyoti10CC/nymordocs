@@ -1,0 +1,72 @@
+---
+title: "On-chain policy"
+description: "A spend cap enforced by the Stellar network itself, with real transactions you can check yourself"
+---
+
+<Note>
+  Every contract address and transaction hash on this page is real and independently checkable on [Stellar Expert](https://stellar.expert/explorer/testnet). Nothing here is test-only output presented as more than it is.
+</Note>
+
+## What this replaces
+
+Without this layer, the spend cap is only as trustworthy as `nymor-server`'s own code — a bug in the ledger logic, or a client that skips it entirely, could overspend with nothing stopping it. `nymor-policy` moves the cap into the Stellar network's own authorization path: a transfer over the cap doesn't get a chance to settle, because the smart account's `__check_auth` panics before the transfer executes.
+
+## Deployed contracts
+
+| Contract | Address | |
+|---|---|---|
+| `nymor-spending-limit-policy` | `CCW6AVTBRVKEDGDDW7CUDALPDLNLUC2M7XBLI56OU65SI2TPBEKJQGHC` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCW6AVTBRVKEDGDDW7CUDALPDLNLUC2M7XBLI56OU65SI2TPBEKJQGHC) |
+| `nymor-account` (buyer's smart account) | `CAF2HV5N57UDZOMGD2WC4BI472Z3CRSQYQ2V4AKPPP5W4PD4HC4LBKVW` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CAF2HV5N57UDZOMGD2WC4BI472Z3CRSQYQ2V4AKPPP5W4PD4HC4LBKVW) |
+
+Both wrap [OpenZeppelin's audited `stellar-accounts`](https://github.com/OpenZeppelin/stellar-contracts) smart-account primitives rather than reimplementing signature verification or spend tracking. `nymor-account` is deployed with a single `CallContract(usdc_sac)` context rule holding the buyer's `Delegated` signer and a `nymor-spending-limit-policy` instance, both installed in one constructor call — configured with a **1.00 USDC / ~1 day** cap.
+
+## Real on-chain proof
+
+Two independently verifiable transactions, not test output:
+
+<CardGroup cols={2}>
+  <Card title="Under cap — accepted" icon="circle-check" color="#4ade80" href="https://stellar.expert/explorer/testnet/tx/e4358552e77b46c87a5ff408bd42cd63efbf26a276e41806148b364a6bd1c4b2">
+    0.10 USDC transferred from `nymor-account`. `successful: true` on Horizon.
+
+    `e4358552e77b46c87a5ff408bd42cd63efbf26a276e41806148b364a6bd1c4b2`
+  </Card>
+  <Card title="Over cap — rejected on-chain" icon="circle-xmark" color="#f87171" href="https://stellar.expert/explorer/testnet/tx/d0f3e128df2bd2d2582a532c32e119dedd1957afdaa79f50412eebca76965f74">
+    0.90 USDC attempted (would push total spend over the daily cap). `successful: false` — rejected with `Error(Contract, #3221)` `SpendingLimitExceeded`, raised from inside the policy's `enforce()`.
+
+    `d0f3e128df2bd2d2582a532c32e119dedd1957afdaa79f50412eebca76965f74`
+  </Card>
+</CardGroup>
+
+Both were cross-checked against the policy contract's own `get_spending_limit_data` read: the rejected transaction left `cached_total_spent` unchanged, confirming the failure rolled back cleanly with no phantom write.
+
+<Accordion title="How the proof transactions were actually built">
+  Getting a real signed transaction through required hand-crafting two things that neither `stellar-sdk`'s `authorizeEntry()` helper nor `@x402/stellar` know how to build:
+
+  1. **The custom auth digest.** OZ smart accounts require signers to sign `auth_digest = sha256(signature_payload || context_rule_ids.to_xdr())`, not the raw payload the Soroban host provides — this binds the selected context rule into the signature to prevent rule-selection downgrade attacks. The signature then gets wrapped in an `AuthPayload{context_rule_ids, signers}` ScVal structure, not the classic `{public_key, signature}` shape `stellar-sdk` defaults to.
+  2. **A second, separate auth entry.** The buyer's signer is a `Signer::Delegated(Address)`, which authenticates via `buyer.require_auth_for_args((auth_digest,))` — called *inside* `nymor-account`'s own `__check_auth`. The Soroban host matches this against a distinct top-level authorization entry whose invocation is `ContractFn(contract=nymor-account, function="__check_auth", args=[auth_digest])` — the current call-stack frame at the moment `require_auth_for_args` runs, not a normal contract call. OpenZeppelin's own documentation confirms this can't be discovered by transaction simulation: *"this model requires manual authorization entry crafting, because it is not returned in a simulation mode."* No reference client implementation exists anywhere in their repository for this case. The exact invocation shape came from reading `soroban-env-host`'s `auth.rs` and `account_contract.rs` source directly, not from documentation.
+
+  The full implementation is `packages/server/scripts/onchain-proof.mjs` in the repository.
+</Accordion>
+
+## Enforcement, proven two ways
+
+Besides the live transactions above, `packages/policy/account/src/test.rs` drives the same `NymorAccount::__check_auth` entry point — the exact function the Soroban host calls in production — against the real deployed-shape contracts in a `soroban-sdk` test environment, as a fast repeatable regression check:
+
+```
+cargo test --package nymor-account
+running 2 tests
+test test::transfer_over_cap_is_rejected_by_the_contract - should panic ... ok
+test test::transfer_within_cap_is_authorized ... ok
+```
+
+## Why the buyer still signs with a raw key
+
+<Warning>
+  This is the one place in the project where "built" and "wired into production" diverge. Read this section before assuming the smart account protects real agent payments today — it doesn't yet.
+</Warning>
+
+`nymor-server`'s buyer signer is still `createEd25519Signer` — a raw Ed25519 keypair, not the smart account. The reason is a real, traced library limitation, not an oversight:
+
+`@x402/stellar`'s `ExactStellarScheme` hardcodes a call to `stellar-sdk`'s default `authorizeEntry()` helper, which only knows how to produce the classic `{public_key, signature}` credential shape and exposes no configuration hook to override it. Routing real agent payments through `nymor-account` would mean forking `@x402/stellar`'s internals — not implementing a custom signer, which its `ClientStellarSigner` interface does genuinely support, but patching the library's own transaction-assembly code. That's a materially larger, riskier scope than a signer implementation, and it stays explicitly out of scope.
+
+**Net effect:** the local ledger (`nymor.ledger.json`) is what actually gates real agent spending today. The on-chain cap is real, deployed, and its enforcement logic is proven correct by both a live rejected transaction and a passing test — but nothing currently routes production payments through it.

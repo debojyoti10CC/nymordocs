@@ -1,0 +1,37 @@
+---
+title: "Roadmap"
+description: "What's next, in priority order, and why the order matters"
+---
+
+Ordered so each step builds credibility for the next — breadth before proof would be backwards.
+
+<Steps>
+  <Step title="Prove the on-chain enforcement is real">
+    Done. Two real transactions on testnet — one accepted under cap, one rejected on-chain over cap — plus a dashboard panel showing the live cap read directly from chain. See [On-chain policy](/on-chain-policy).
+  </Step>
+  <Step title="Get one resource in the registry built by someone else">
+    Not started. The single highest-leverage remaining move: one real, working paid resource registered by an external builder converts the honest "it's a feature one person built" framing into "it's infrastructure other people use." Doesn't need to be impressive — needs to be external.
+  </Step>
+  <Step title="Close the known loose ends">
+    - Let "Try it yourself" accept typed input for the summarize resource instead of a hardcoded string.
+    - Click-test the summarize payment for real once, capture the settled tx hash.
+    - Tighten CORS from wildcard before any claim that reads as mainnet-ready.
+  </Step>
+  <Step title="Expand the registry for breadth">
+    After proof and one external resource, not before — breadth doesn't fix an unproven core claim. Candidates chosen for variety and visual payoff: image generation (Pollinations.ai, no key needed), a Stellar account-balance lookup via Horizon (ties Nymor visibly to the Stellar ecosystem specifically), and one more quick win (currency conversion or weather).
+  </Step>
+  <Step title="This documentation">
+    You're reading it. Doubles as the Technical Standards documentation and, in its technical-overview form, the Ecosystem Contribution "technical blog" submission — same honest content satisfies both.
+  </Step>
+  <Step title="Level 6 mechanical items">
+    Last, once the above give the project something real to show:
+    - Mainnet deployment
+    - A security review request through Stellar Ambassador/mentor channels, using the honest threat-model writeup from this documentation
+    - Let real commit history reflect real work, rather than padding it
+    - A marketing push, timed to land once there's something worth showing
+  </Step>
+</Steps>
+
+<Warning>
+  Explicitly out of scope, and staying that way: forking `@x402/stellar` to route production agent payments through the smart account. The gap is real and disclosed (see [On-chain policy](/on-chain-policy#why-the-buyer-still-signs-with-a-raw-key)) — the fix is a fork of a third-party library's internals, not a signer implementation, and that scope tradeoff isn't worth it right now.
+</Warning>

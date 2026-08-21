@@ -1,0 +1,54 @@
+---
+title: "Dashboard"
+description: "A public web app for humans -- no AI agent or MCP client required"
+---
+
+`nymor-dashboard` is the human-facing side of the project: everything an AI agent can do through the MCP server, a person can see and do in a browser. Four panels, all against real data — no placeholder content shipped as if it works.
+
+<CardGroup cols={2}>
+  <Card title="Marketplace" icon="store">
+    Reads `GET /registry` from `nymor-resources` — the same catalog `nymor-server` uses, not a duplicate. Shows each resource's name, description, price, and method. No wallet needed to view it.
+  </Card>
+  <Card title="Live activity" icon="chart-line">
+    Polls Horizon for real `account_credited` USDC effects on the seller's address and renders them as they land, with a link to each transaction.
+  </Card>
+  <Card title="On-chain policy" icon="shield-check" href="/on-chain-policy">
+    The real contract addresses, the live spend cap read directly from chain, and the two proof transactions — one accepted, one rejected on-chain.
+  </Card>
+  <Card title="Try it yourself" icon="wallet">
+    Connect a Freighter wallet and run the real x402 payment flow client-side — pay $0.01, get real data back, no agent involved.
+  </Card>
+</CardGroup>
+
+## Live activity: a data-shape detail that mattered
+
+The obvious approach — polling Horizon's `GET /accounts/{payTo}/payments` — doesn't work here. x402's Stellar exact scheme pays by invoking `transfer` on the USDC Stellar Asset Contract, which Horizon records as an `invoke_host_function` operation, not a classic `Payment` operation. That was verified against a real settled transaction before the panel was built, not assumed from documentation. The panel instead polls `GET /accounts/{payTo}/effects` and filters to `account_credited` effects — the layer that actually carries `from`/`to`/`amount` for a SAC-invoked transfer.
+
+## Try it yourself: three real CORS bugs, in order
+
+This panel runs `@x402/fetch` + `@x402/core` + `@x402/stellar` client-side, using a Freighter-backed signer (`src/freighterSigner.ts`) instead of a raw private key — Freighter's `signAuthEntry`/`signTransaction` already match the [SEP-43](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0043.md) shape `@x402/stellar` expects, so no shimming was needed beyond binding the connected address.
+
+Getting it working end-to-end surfaced three separate, real bugs — worth documenting because each one masked the next:
+
+<Steps>
+  <Step title="No CORS headers at all">
+    `nymor-resources`' paid routes had never been called from a browser before — only from `nymor-server` (Node) and curl, neither of which triggers CORS. Every browser fetch failed outright with `Failed to fetch`.
+  </Step>
+  <Step title="PAYMENT-REQUIRED not exposed">
+    Once CORS was added, requests got through but the client couldn't parse the 402 response — `@x402/express` puts the payment payload in a `PAYMENT-REQUIRED` response *header*, not the JSON body, and that header wasn't in `Access-Control-Expose-Headers`.
+  </Step>
+  <Step title="A real upstream library bug">
+    `@x402/fetch` v2.23.0 sets `Access-Control-Expose-Headers` — a response-only header — as a *request* header on the signed retry. Browsers reject unlisted headers in preflight, so the real payment header never made it out. Fixed by allowlisting that header name server-side rather than patching the library.
+  </Step>
+</Steps>
+
+All three fixed and confirmed end-to-end: a real Freighter wallet, funded with testnet USDC, paid $0.01 for the live XLM price resource and received real CoinGecko-sourced data back.
+
+## Running it
+
+```bash
+cp packages/dashboard/.env.example packages/dashboard/.env.local
+pnpm dev:dashboard
+```
+
+Requires `nymor-resources` running for the marketplace and try-it-yourself panels, and a [Freighter](https://www.freighter.app/) wallet with a testnet USDC trustline for the last one.
